@@ -1,4 +1,4 @@
-# GCAT
+# GCAT (Generative Collaborative Adversarial Training)
 
 Welcome to the official repository for GCAT (Generative Collaborative Adversarial Training).
 
