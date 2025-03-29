@@ -1,5 +1,5 @@
 # GCAT
 
-This is the official repository for GCAT (Generative Collaborative Adversarial Training).
+Welcome to the official repository for GCAT (Generative Collaborative Adversarial Training).
 
-The code will be released soon.
+The code is currently being prepared and will be released soon. Stay tuned!
