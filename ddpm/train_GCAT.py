@@ -105,51 +105,7 @@ class FeatureDistributionLoss(nn.Module):
         cov += self.eps * torch.eye(cov.size(0), device=cov.device)  # add small value to diagonal for numerical stability
     
         return mean.detach(), cov.detach(), features
-        
-    def compute_loss(self, real_mean, real_cov, real_features, generated_images, chunk_size=128):
-        """
-        Compute the FID-like loss between real and generated images.
-        Args:
-            real_mean (Tensor): Precomputed mean of real features.
-            real_cov (Tensor): Precomputed covariance of real features.
-            generated_images (Tensor): Batch of generated images.
-            chunk_size (int): Size of chunks to process images in smaller batches.
-        Returns:
-            fdl_loss (Tensor): FID-like loss value.
-        """
-        generated_features_list = []
     
-        # process generated images in chunks
-        for i in range(0, generated_images.size(0), chunk_size):
-            chunk = generated_images[i:i + chunk_size]
-            
-            chunk_preprocessed = torch.stack([self.preprocess(img) for img in chunk])
-            
-            chunk_features = self.feature_extractor(chunk_preprocessed).view(chunk_preprocessed.size(0), -1)
-            generated_features_list.append(chunk_features)
-        
-        generated_features = torch.cat(generated_features_list, dim=0)
-
-        fdl_loss = self.compute_unbiased_mmd(real_features, generated_features, kernel_bandwidths="multi")
-
-        # safeguard to prevent NaN values
-        if torch.isnan(fdl_loss).any() or torch.isinf(fdl_loss).any():
-            return None
-
-        fdl_loss = torch.clamp(fdl_loss, min=1e-6, max=1000.0)
-
-        safe_fdl_loss = -fdl_loss
-        
-        # ensure safe_fdl_loss has requires_grad=True
-        safe_fdl_loss = safe_fdl_loss.requires_grad_(True).to(generated_images.device)
-        return safe_fdl_loss
-
-    def check_nan_inf(self, tensor, name="Tensor"):
-        if torch.isnan(tensor).any():
-            print (f"{name} contains NaN values.")
-        if torch.isinf(tensor).any():
-            print (f"{name} contains Inf values.")
-
     def compute_unbiased_mmd(self, features_real, features_perturbed, kernel_bandwidths=None):
         """
         Computes the unbiased MMD loss between real and perturbed features.
@@ -201,6 +157,44 @@ class FeatureDistributionLoss(nn.Module):
         
         mmd_loss /= len(kernel_bandwidths)
         return mmd_loss
+        
+    def compute_loss(self, real_mean, real_cov, real_features, generated_images, chunk_size=128):
+        """
+        Compute the FDL between real and generated images.
+        Args:
+            real_mean (Tensor): Precomputed mean of real features.
+            real_cov (Tensor): Precomputed covariance of real features.
+            generated_images (Tensor): Batch of generated images.
+            chunk_size (int): Size of chunks to process images in smaller batches.
+        Returns:
+            fdl_loss (Tensor): FDL loss value.
+        """
+        generated_features_list = []
+    
+        # process generated images in chunks
+        for i in range(0, generated_images.size(0), chunk_size):
+            chunk = generated_images[i:i + chunk_size]
+            
+            chunk_preprocessed = torch.stack([self.preprocess(img) for img in chunk])
+            
+            chunk_features = self.feature_extractor(chunk_preprocessed).view(chunk_preprocessed.size(0), -1)
+            generated_features_list.append(chunk_features)
+        
+        generated_features = torch.cat(generated_features_list, dim=0)
+
+        fdl_loss = self.compute_unbiased_mmd(real_features, generated_features, kernel_bandwidths="multi")
+
+        # safeguard to prevent NaN values
+        if torch.isnan(fdl_loss).any() or torch.isinf(fdl_loss).any():
+            return None
+
+        fdl_loss = torch.clamp(fdl_loss, min=1e-6, max=1000.0)
+
+        safe_fdl_loss = -fdl_loss
+        
+        # ensure safe_fdl_loss has requires_grad=True
+        safe_fdl_loss = safe_fdl_loss.requires_grad_(True).to(generated_images.device)
+        return safe_fdl_loss
 
 
 class DiffusionModel_GCAT(L.LightningModule):
@@ -467,7 +461,7 @@ if __name__ == "__main__":
                 )
 
     # specify the log directory
-    logger = TensorBoardLogger(save_dir="./DDPM_GCAT_logs/cifar10/", name="GCAT_eps_03_img_size_64")
+    logger = TensorBoardLogger(save_dir="./DDPM_GCAT_logs/cifar10/", name="GCAT")
     
     model = DiffusionModel_GCAT(timesteps=1000, epsilon=0.3, malicious_epsilon=0.3, model_name="mobilenet_v3_large", num_iterations=10, lr=0.0001, wd=0.00001, sample_size=32)
 
