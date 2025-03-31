@@ -1,0 +1,10 @@
+datasets
+diffusers
+jsonargparse
+lightning
+Pillow
+Pillow
+torch
+torchmetrics
+torchvision
+tqdm
